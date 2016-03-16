@@ -4,6 +4,8 @@ from bs4 import BeautifulSoup
 from utils.simple_requests_fetcher import SimpleRequestsFetcher
 from processors import CapchaRequiredException
 from utils import fs
+import requests
+import ipdb
 
 try:
     # Pyhton2
@@ -143,27 +145,31 @@ class SiteWOProcessor:
         
         self._fetcher.clear_cookies()
         
-        bs_content = self._get_bs_content(
-            			"http://patentscope.wipo.int/search/en/result.jsf")
+        session = requests.Session()
 
-        bs_content = self._fetcher.post(
-            "http://patentscope.wipo.int/search/en/result.jsf",
-            {
+        bs_content = session.get("https://patentscope.wipo.int/search/en/result.jsf")
+
+        print (session.cookies.get_dict()['JSESSIONID'])
+        cookie_dict = session.cookies.get_dict()
+        sessid = session.cookies.get_dict()['JSESSIONID']
+        bs_content = BeautifulSoup(bs_content.content)
+        url = "https://patentscope.wipo.int/search/en/result.jsf;jsessionid=" + sessid
+        print (url)
+        payload = {
                 "resultListForm": "resultListForm",
                 "resultListForm:goToPage": "1",
-                "resultListForm:refineSearchTop": number,
+                "resultListForm:refineSearchTop": "PCT/IB2013/001063",
                 "resultListForm:commandRefineSearchTop": "Search",
                 "resultListForm:j_idt401": "workaround",
                 "javax.faces.ViewState":
-                    bs_content.find("input",
-                        {"name": "javax.faces.ViewState"})["value"]
-            })
-#        print(self._fetcher.get_session().cookies["JSESSIONID"])
-      #  bs_content = self._fetcher.post(
-       #     "https://patentscope.wipo.int/search/en/search.jsf",
-      #      data)
+                bs_content.find("input",
+                {"name": "javax.faces.ViewState"})["value"]
+                }
+        print (bs_content.find("input",
+                {"name": "javax.faces.ViewState"})["value"])
 
-        
+        response = requests.request("POST", url, data=payload,allow_redirects=True,cookies=cookie_dict)
+        bs_content=response
         if bs_content.status_code != 200:
             raise Exception("Server error: %s (%s)" % (bs_content.status_code))
         
@@ -196,9 +202,10 @@ class SiteWOProcessor:
             
         bs_content = self._get_bs_content(url)
         '''
-        
+        #ipdb.set_trace()        
         table = bs_content.find("table",
             { "cellspacing": "3", "id": "detailPCTtableHeader"})
+        print (repr(table.encode("utf-8")))
         data = {
                 "Alias": alias,
             }
